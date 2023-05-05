@@ -2,7 +2,7 @@ This tool will do automated massive listings and buyings for you.
 
 To use:
 
-You need to at least have Node.js installed. (https://nodejs.org/en).
+You need to at least have Node.js installed. (https://nodejs.org/en). Version 18 works for me.
 
 Clone the repository. 
 
