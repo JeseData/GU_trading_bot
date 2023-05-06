@@ -33,6 +33,7 @@ const rl = readline.createInterface({
 
 // SET UP YOUR TRADE PARAMETERS
 const avgPriceFromXListed = 3;
+//Discount needs to be at least 7% for lowest listing, to account for protocol fees(2%) and royalties(5%)
 const discountPercentFromAvg = 5;
 const maxListsPerCard = 1;
 
