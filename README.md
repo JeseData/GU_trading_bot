@@ -1,4 +1,5 @@
 This tool will do automated massive listings and buyings for you.
+Not suitable for sniping.
 
 To use:
 
