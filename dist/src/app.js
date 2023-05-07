@@ -6,14 +6,28 @@ import readline from "readline";
 //Helpers to change between WEIs and full ETHs
 let singleFullTokenInMinimals = 1000000000000000000n;
 let minimumMultiplier = 100000000n;
-//Gods unchained cards
-let collectionAddress = "0xacb3c6a43d15b907e8433077b6d38ae40936fe2c";
+let currencyString = "";
+let currencyChosen = "";
+let collections = {
+  ["Gods Unchained Cards"]: "0xacb3c6a43d15b907e8433077b6d38ae40936fe2c",
+  ["Guild of Guardians Heroes"]:"0xee972ad3b8ac062de2e4d5e6ea4a37e36c849a11",
+  ["Guild of Guardians Other"]:"0x56a900b85d309e0a981d59377ea76f12dcd4b8de",
+  ["Guild of Guardians Pets"]:"0xf797fa8b22218f4a82286e28a2727cd1680f4237",
+  ['Cross The Ages']: "0xa04bcac09a3ca810796c9e3deee8fdc8c9807166",
+  ["Illuvium Land"] :  "0x9e0d99b864e1ac12565125c5a82b59adea5a09cd",
+  ["Hro"]:"0x8cb332602d2f614b570c7631202e5bf4bb93f3f6",
+  ["Illuvitars"]:"0x8cceea8cfb0f8670f4de3a6cd2152925605d19a8",
+  ["Book Games"]:"0xac98d8d1bb27a94e79fbf49198210240688bb1ed",
+  ["Gods Unchained Cosmetics"]: "0x7c3214ddc55dfd2cac63c02d0b423c29845c03ba"
+  }
+
 let tokenAddresses = {
   //For multiple currency buys and sells
   ETH : "ETH",
   IMX : "0xf57e7e7c23978c3caec3c3548e3d615c346e79ff",
-  GU : "0xccc8cb5229b0ac8069c51fd58367fd1e622afd97"
+  GODS : "0xccc8cb5229b0ac8069c51fd58367fd1e622afd97"
 };
+let priceImx = 0;
 let priceGods = 0;
 let priceEth = 0;
 let itemsToList = {};
@@ -26,32 +40,40 @@ const rl = readline.createInterface({
   output: process.stdout
 });
 
-
+//___________________________________________________________________________________________________________________________________________________
 
 //RUN THIS IF YOU HAVE NOT REGISTERED THE WALLET IN IMX BEFORE
 // await imxClient.registerOffchain(walletConnection);
 
+
+//Choose collection, you can add your own, just find the collection address from immutascan.
+//If you use collection other than 'Gods Unchained Cards', metadata filters dont work, only the "name". Unless you set the metadata filters by yourself to fit the collection
+let collectionChosen = collections['Gods Unchained Cards'];
+
+//ETH, IMX, GODS
+//IMX and Gods have lower volume and unstable prices, Only change this if you know what you are doing
+setCurrency("ETH")
+
 // SET UP YOUR TRADE PARAMETERS
-const avgPriceFromXListed = 3;
-//Discount needs to be at least 7% for lowest listing, to account for protocol fees(2%) and royalties(5%)
-const discountPercentFromAvg = 5;
-const maxListsPerCard = 1;
+let avgPriceFromXListed = 3;
+let discountPercentFromAvg = 5;
+let maxListsPerCard = 1;
 
-//Sets maker/taker fee to every trade. 
-const feePercentageToCreator = 0.1;
+//Sets maker/taker fee to every trade, feel free to modify. 
+let feePercentageToCreator = 0.1;
 
-//Max price in ETHs. Use full names of items for precise buys. 
+//Max price in Currency chosen. Use full names of items for precise buys. 
 //Max maxAmount is 100 for now, do multiple calls for more buys
-const buySettings = {
-  ["Academy Apprentice"] : {maxPrice : 0.000013, maxAmount : 2},  
+let buySettings = {
+  ["Academy Apprentice"] : {maxPrice : 0.0001, maxAmount : 2},  
   ["on her command"] : {maxPrice : 0.00001, maxAmount : 1} 
 };
 
 //QUALITY ONLY FOR METEORITE DO NOT MODIFY
 let quality = ["Meteorite"];
 
-//Choose which filters to use
-let userFilters = {set : false, rarity:false, name: false}
+//Choose which filters to use (DO NOT CHANGE QUALITY UNLESS YOU KNOW WHAT YOU ARE DOING)
+let userFilters = {set : false, rarity:false, name: false, quality:true}
 
 //core, etherbots, genesis, promo, trial, mythic, order, mortal,
 //verdict, wander, welcome, wolf
@@ -68,16 +90,87 @@ const userAddress = await walletConnection.ethSigner.getAddress();
 //actionList()
 
 //Operates buy every 300 seconds
-//setInterval(300000, actionBuy);
+//setInterval(actionBuy, 300000);
 
 //Tip amount in ETH
 //tipJese(0.002)
 
 
+// TRIPLE CHECK THE WALLET ADDRESS BEFORE USING THIS COMMAND, IT WILL SEND ALL NFTS OF THE CHOSEN COLLECTION
+//transferAllAssets("0x....");
+
+
+//Example for saved settings
+//You can store multiple of these in the code. Only run one at a time.
+
+//savedSettingsBuyExample2();
+
+function savedSettingsListExample1(){
+  collectionChosen = collections['Gods Unchained Cards'];
+  setCurrency("GODS");
+  avgPriceFromXListed = 3;
+  discountPercentFromAvg = 5;   
+  maxListsPerCard = 1;
+  feePercentageToCreator = 0.1;
+  userFilters = {set : false, rarity:false, name: false, quality:true}
+  cardSet = ['wolf', "genesis"];
+  rarity = ['rare', 'common', 'epic', 'legendary'];
+  tokenNames = ["hortuk"];
+  actionList();
+}
+function savedSettingsBuyExample2(){
+  collectionChosen = collections['Guild of Guardians Heroes'];
+  setCurrency("ETH");
+  feePercentageToCreator = 0.1;
+  buySettings = {
+  ["arkus"] : {maxPrice : 0.023, maxAmount : 1}
+  };
+  actionBuy();
+}
+//_____________________________________________________________________________________________________________________________
+
+function setCurrency(currency){
+  currencyChosen = tokenAddresses[currency]
+  if(currencyChosen == "ETH"){
+    currencyString = "buy_token_type=ETH";
+  } else {
+    currencyString = "buy_token_address=" + currencyChosen;
+  }
+}
+
+async function transferAllAssets(toAddress){
+  maxListsPerCard = 1000;
+  let assetCursor = "";
+  let assets = [];
+  let filters = { user: userAddress, cursor: assetCursor, status: 'imx', collection: collectionChosen, pageSize : 100 };
+
+  try {
+    await getResult(filters);
+  } catch (error) {
+    console.log("Try with tighter filters");
+    console.error(error);
+  }
+
+  let arrayOfSend = [];
+  for(const key in itemsToList){
+    for(const count in itemsToList[key].ids){
+      arrayOfSend.push({receiver: toAddress, tokenId: (itemsToList[key].ids[count]).toString(), tokenAddress: collectionChosen})
+    
+    }
+  }
+
+  rl.question('Do you really want to send all of the chosen collection to ' + toAddress + ' (yes / no)', (stringAccept) => {
+      if(stringAccept == "yes"){
+        imxClient.batchNftTransfer(walletConnection, arrayOfSend);
+      };
+      rl.close();
+    });
+};
 
 
 
 async function actionBuy(){
+
   await makeBuys()
 }
 async function actionList(){
@@ -132,7 +225,6 @@ async function listAllInList(){
   for(const key in itemsToList){
     let priceToList = itemsToList[key].price;
     for(const count in itemsToList[key].ids){
-      console.log(priceToList)
       await createListing(priceToList, itemsToList[key].ids[count])
       console.log("listed " + key + " - " + (count));
     }
@@ -141,15 +233,12 @@ async function listAllInList(){
 
 async function createListing(sellPrice, id){
 
-  const listingParams = {
+  let listingParams = {
     user:userAddress,
-    buy: {
-      type: 'ETH',
-      amount: sellPrice.toString()
-    },
+    buy: {amount: sellPrice.toString()},
     sell: {
       type: 'ERC721',
-      tokenAddress: collectionAddress,
+      tokenAddress: collectionChosen,
       tokenId: id.toString(),
     },
       fees: [
@@ -158,8 +247,15 @@ async function createListing(sellPrice, id){
           fee_percentage: feePercentageToCreator,
         },
       ],
-    
   };
+  if(currencyChosen == "ETH"){
+    listingParams.buy['type'] = 'ETH';
+  
+  } else {
+    listingParams.buy['type'] = "ERC20";
+    listingParams.buy['tokenAddress'] = currencyChosen;
+  }
+
   try {
     const orderResponse = await imxClient.createOrder(
       walletConnection,
@@ -177,7 +273,7 @@ async function getAssets(){
   let assetCursor = "";
   let assets = [];
   let filters = { user: userAddress, cursor: assetCursor, status: 'imx',
-  collection: collectionAddress, includeFees : true, pageSize : 100 };
+  collection: collectionChosen, includeFees : true, pageSize : 100 };
   let metadatas = {};
   if(userFilters.quality){
     metadatas['quality'] = quality;
@@ -196,9 +292,10 @@ async function getAssets(){
     }
     filters['name'] = namesArray;
   }
-
-  filters['metadata'] = encodeURI(JSON.stringify(metadatas));
-
+  if(collectionChosen == collections['Gods Unchained Cards']){
+    //Metadata filters only apply to GU cards.
+    filters['metadata'] = encodeURI(JSON.stringify(metadatas));
+  }
   try {
     await getResult(filters);
   } catch (error) {
@@ -225,9 +322,27 @@ async function resultToObj(result){
 }
 
 function printSellSet(){
+  let priceString = "";
+  let priceTokenChosen = 0;
+  switch(currencyChosen){
+    case tokenAddresses.ETH:
+      priceString = "$eth";
+      priceTokenChosen=priceEth;
+    break;
+    case tokenAddresses.IMX: 
+    priceString = "$imx";  
+    priceTokenChosen=priceImx;
+    break;
+    case tokenAddresses.GODS: 
+      priceString = "$gods";
+      priceTokenChosen=priceGods;
+    break;
+    default: 
+      priceTokenChosen = 0;
+  }
   for(const key in itemsToList){
     let itemPrice = parseFloat(itemsToList[key].price) / parseFloat(singleFullTokenInMinimals);
-    console.log(key + " x " +  itemsToList[key].ids.length + " for eth/usd " + itemPrice.toFixed(7) + " / " + (itemPrice*priceEth).toFixed(3) + "$");
+    console.log(key + " x " +  itemsToList[key].ids.length + " for " + priceString + "/usd " + itemPrice.toFixed(7) + " / " + (itemPrice*priceTokenChosen).toFixed(3) + "$");
   }
 }
 async function getResult(filters){
@@ -253,7 +368,7 @@ async function getListingAvgPrice(cardName = "", x = 3){
     return new Promise((resolve, reject) => {
       const optionsApi = {
         hostname: 'api.x.immutable.com',
-        path: ('/v3/orders?status=active&sell_token_address=0xacb3c6a43d15b907e8433077b6d38ae40936fe2c&order_by=buy_quantity_with_fees&direction=asc&buy_token_type=ETH&' 
+        path: ('/v3/orders?status=active&sell_token_address=' + collectionChosen + '&order_by=buy_quantity_with_fees&direction=asc&' + currencyString +'&' 
         + "sell_token_name=" + encodeURIComponent(cardName) + "&page_size="+x+1),
         method: 'GET'
       };
@@ -289,7 +404,7 @@ async function getListings(cardName = "", x = 10){
     return new Promise((resolve, reject) => {
       const optionsApi = {
         hostname: 'api.x.immutable.com',
-        path: ('/v3/orders?status=active&sell_token_address=0xacb3c6a43d15b907e8433077b6d38ae40936fe2c&order_by=buy_quantity_with_fees&direction=asc&buy_token_type=ETH&' 
+        path: ('/v3/orders?status=active&sell_token_address=' + collectionChosen + '&order_by=buy_quantity_with_fees&direction=asc&' + currencyString + '&' 
         + "sell_token_name=" + encodeURIComponent(cardName) + "&page_size="+x),
         method: 'GET'
       };
@@ -338,6 +453,7 @@ async function getPrices(){
         
           priceGods = data['gods-unchained'].usd;
           priceEth = data.ethereum.usd;
+          priceImx = data['immutable-x'].usd;
         resolve();
       });
 
