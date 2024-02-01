@@ -1,3 +1,6 @@
+*** POSSIBLY OUTDATED API CALLS / PRICE DATA, USE ONLY FOR METEORITE CARDS UNLESS YOU KNOW WHAT YOU ARE DOING
+
+
 This tool will do automated massive listings and buyings for you.
 Not suitable for sniping.
 
